@@ -12,9 +12,13 @@ pnpm build       # outputs to dist/
 pnpm preview     # serve the production build locally
 ```
 
-Media is stored in **Git LFS**. Run `git lfs install` once before cloning
-or checking out, otherwise `src/imports/` will contain pointer files
-instead of images and the build will produce broken assets.
+Media in `src/imports/` is stored as **ordinary Git objects, not Git LFS**,
+so a plain `git clone` gets real files and no extra setup is needed.
+
+> Do not move this media into Git LFS. Vercel does not fetch LFS objects
+> during its build — it checks out the pointer files, and the bundler then
+> ships those 131-byte text stubs in place of every image and video. The
+> site builds successfully and renders completely blank media.
 
 ## Environment variables
 
