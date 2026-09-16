@@ -43,7 +43,6 @@ import legacyImpactImg from '@/imports/charitable_foundation_image.jpg'
 import legalBackingImg from '@/imports/legal_backing-1.jpg'
 import riskMgmtImg from '@/imports/risk_management-1.jpg'
 
-import communityImpactNewImg from '@/imports/community_impact.JPG'
 import buildYourTeamProtectImg from '@/imports/build_your_team_protect_your_future.JPG'
 import buildYourTeamImg from '@/imports/build_your_team.JPG'
 import publicSpeaking2Img from '@/imports/public_speaking_2.jpeg'
@@ -117,6 +116,50 @@ function useCountUp(target: number, duration = 2400, active = false) {
     return () => clearInterval(timer)
   }, [active, target, duration])
   return count
+}
+
+// ── FORM SUBMISSION ───────────────────────────────────────────────────────────
+
+/**
+ * Posts form data as JSON to VITE_FORM_ENDPOINT.
+ *
+ * If that variable is not configured the submission fails loudly rather than
+ * showing a success screen, so the site never tells someone we received an
+ * application that was in fact discarded. Set VITE_FORM_ENDPOINT in the host's
+ * environment (Formspree, Basin, a serverless route — anything accepting a
+ * JSON POST) to switch the forms on.
+ */
+function useFormSubmit(formName: string) {
+  const [status, setStatus] = useState<'idle' | 'sending' | 'error'>('idle')
+  const [error, setError] = useState<string | null>(null)
+
+  const submit = async (data: Record<string, string>): Promise<boolean> => {
+    const endpoint = import.meta.env.VITE_FORM_ENDPOINT
+    if (!endpoint) {
+      setStatus('error')
+      setError('This form is not connected yet. Please reach us directly while we finish setting it up.')
+      return false
+    }
+
+    setStatus('sending')
+    setError(null)
+    try {
+      const res = await fetch(endpoint, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', Accept: 'application/json' },
+        body: JSON.stringify({ form: formName, submittedAt: new Date().toISOString(), data }),
+      })
+      if (!res.ok) throw new Error(`Submission failed (${res.status}). Please try again.`)
+      setStatus('idle')
+      return true
+    } catch (e) {
+      setStatus('error')
+      setError(e instanceof Error ? e.message : 'Submission failed. Please try again.')
+      return false
+    }
+  }
+
+  return { status, error, submit }
 }
 
 // ── LOGO MARK (inline SVG — transparent canvas, no JPEG box) ──────────────────
@@ -204,7 +247,7 @@ function Logo({ onClick }: { onClick?: () => void }) {
           transition: 'opacity 0.18s ease',
         }}
         onMouseEnter={onClick ? (e) => { (e.currentTarget as HTMLImageElement).style.opacity = '1' } : undefined}
-        onMouseLeave={onClick ? (e) => { (e.currentTarget as HTMLImageElement).style.opacity = '0.92' } : undefined}
+        onMouseLeave={onClick ? (e) => { (e.currentTarget as HTMLImageElement).style.opacity = '0.94' } : undefined}
       />
     </Tag>
   )
@@ -650,15 +693,35 @@ function NavOverlay({
   onNavigate: (l1: string, l2: string, l3: string) => void
   onUtility: (page: string) => void
 }) {
+  // Escape closes the panel, and the page behind it stops scrolling while open.
+  useEffect(() => {
+    if (!isOpen) return
+    const onKey = (e: KeyboardEvent) => { if (e.key === 'Escape') onClose() }
+    window.addEventListener('keydown', onKey)
+    const prevOverflow = document.body.style.overflow
+    document.body.style.overflow = 'hidden'
+    return () => {
+      window.removeEventListener('keydown', onKey)
+      document.body.style.overflow = prevOverflow
+    }
+  }, [isOpen, onClose])
+
   return (
     <div
       className="fixed inset-0 z-50"
+      role="dialog"
+      aria-modal="true"
+      aria-label="Site navigation"
       style={{
         backgroundColor: '#0A0A0A',
         opacity: isOpen ? 1 : 0,
         pointerEvents: isOpen ? 'auto' : 'none',
         visibility: isOpen ? 'visible' : 'hidden',
-        transition: 'opacity 0.3s ease, visibility 0s linear 0.3s',
+        // Delay the visibility flip on close only — applying it to both
+        // directions left the panel invisible for 300ms while opening.
+        transition: isOpen
+          ? 'opacity 0.3s ease, visibility 0s linear 0s'
+          : 'opacity 0.3s ease, visibility 0s linear 0.3s',
       }}
     >
       <div className="absolute top-7 left-10">
@@ -2384,7 +2447,9 @@ const PILLAR_HERO_FILTER: Record<string, string> = {
 // Pages with multiple hero images — rendered as a cinematic slideshow
 const PILLAR_HERO_SLIDES: Record<string, string[]> = {
   'REPRESENT|Athletes|NIL': [nil1Img, nil2Img, nil3Img],
-  'BUILD|Legacy|Community Impact': [communityImpactNewImg, communityImpactImg],
+  // Single image until a second Community Impact photo is supplied — the two
+  // entries here were the same file under different extension casing.
+  'BUILD|Legacy|Community Impact': [communityImpactImg],
   'BUILD|Legacy|Life After Sports': [lifeAfterSports1, lifeAfterSports2, lifeAfterSports3],
   'BUILD|Trust|Build Your Team. Protect Your Future.': [buildYourTeamProtectImg, buildYourTeamImg],
   'BUILD|Legacy|Public Speaking': [publicSpeaking2Img, publicSpeaking22Img],
@@ -2424,12 +2489,14 @@ function PillarPage({
   l3,
   onBack,
   onOpenNav,
+  onUtility,
 }: {
   pillar: string
   l2: string | null
   l3: string | null
   onBack: () => void
   onOpenNav: () => void
+  onUtility: (page: string) => void
 }) {
   const [loaded, setLoaded] = useState(false)
   const isMobile = useIsMobile()
@@ -2621,6 +2688,7 @@ function PillarPage({
             )}
             <div className="mt-12">
               <button
+                onClick={() => onUtility('Contact')}
                 className="px-8 py-[13px] transition-all duration-200"
                 style={{ backgroundColor: '#C4C0B8', color: '#0A0A0A', fontFamily: "'Oswald', sans-serif", fontWeight: 600, fontSize: '11px', letterSpacing: '0.18em', textTransform: 'uppercase' }}
                 onMouseEnter={e => { e.currentTarget.style.backgroundColor = '#8C8884' }}
@@ -2720,7 +2788,7 @@ function PillarPage({
           </div>
         </div>
       )}
-      <Footer onUtility={() => {}} />
+      <Footer onUtility={onUtility} />
     </InnerShell>
   )
 }
@@ -2746,7 +2814,7 @@ function AboutPlaceholder({ label }: { label: string }) {
   )
 }
 
-function AboutPage({ onBack, onOpenNav }: { onBack: () => void; onOpenNav: () => void }) {
+function AboutPage({ onBack, onOpenNav, onUtility }: { onBack: () => void; onOpenNav: () => void; onUtility: (page: string) => void }) {
   const isMobile = useIsMobile()
   const aboutVideoRef = useRef<HTMLVideoElement>(null)
   const [heroLoaded, setHeroLoaded] = useState(false)
@@ -3130,15 +3198,27 @@ function AboutPage({ onBack, onOpenNav }: { onBack: () => void; onOpenNav: () =>
         </div>
       </div>
 
-      <Footer onUtility={() => {}} />
+      <Footer onUtility={onUtility} />
     </InnerShell>
   )
 }
 
 // ── CONTACT PAGE ──────────────────────────────────────────────────────────────
 
-function ContactPage({ onBack, onOpenNav }: { onBack: () => void; onOpenNav: () => void }) {
+function ContactPage({ onBack, onOpenNav, onUtility }: { onBack: () => void; onOpenNav: () => void; onUtility: (page: string) => void }) {
   const { ref, visible } = useScrollReveal(0.05)
+  const [values, setValues] = useState<Record<string, string>>({})
+  const [sent, setSent] = useState(false)
+  const { status, error, submit } = useFormSubmit('contact')
+
+  const setField = (label: string, value: string) =>
+    setValues(v => ({ ...v, [label]: value }))
+
+  const handleSubmit = async (e: React.FormEvent) => {
+    e.preventDefault()
+    const ok = await submit(values)
+    if (ok) { setSent(true); setValues({}) }
+  }
 
   return (
     <InnerShell onBack={onBack} onOpenNav={onOpenNav}>
@@ -3152,29 +3232,36 @@ function ContactPage({ onBack, onOpenNav }: { onBack: () => void; onOpenNav: () 
 
         <div ref={ref} className="grid grid-cols-1 lg:grid-cols-2 gap-16 items-start">
           <form
-            onSubmit={e => e.preventDefault()}
+            onSubmit={handleSubmit}
             className="flex flex-col gap-8"
             style={{ opacity: visible ? 1 : 0, transform: visible ? 'translateY(0)' : 'translateY(28px)', transition: 'opacity 0.9s ease, transform 0.9s ease' }}
           >
             {[
-              { label: 'Full Name', type: 'text', placeholder: 'Your name' },
-              { label: 'Email Address', type: 'email', placeholder: 'your@email.com' },
-              { label: 'Phone Number', type: 'tel', placeholder: 'Your phone number' },
+              { label: 'Full Name', type: 'text', placeholder: 'Your name', required: true },
+              { label: 'Email Address', type: 'email', placeholder: 'your@email.com', required: true },
+              { label: 'Phone Number', type: 'tel', placeholder: 'Your phone number', required: false },
             ].map(f => (
               <div key={f.label}>
-                <label style={{ fontFamily: "'Inter', sans-serif", fontSize: '9px', letterSpacing: '0.28em', color: '#383838', textTransform: 'uppercase', display: 'block', marginBottom: '10px' }}>{f.label}</label>
+                <label htmlFor={`contact-${f.type}`} style={{ fontFamily: "'Inter', sans-serif", fontSize: '9px', letterSpacing: '0.28em', color: '#383838', textTransform: 'uppercase', display: 'block', marginBottom: '10px' }}>{f.label}</label>
                 <input
+                  id={`contact-${f.type}`}
                   type={f.type}
+                  required={f.required}
                   placeholder={f.placeholder}
+                  value={values[f.label] ?? ''}
+                  onChange={e => setField(f.label, e.target.value)}
                   className="w-full bg-transparent"
                   style={{ borderBottom: '1px solid #141417', paddingBottom: '10px', fontFamily: "'Inter', sans-serif", fontSize: '14px', color: '#888', fontWeight: 300 }}
                 />
               </div>
             ))}
             <div>
-              <label style={{ fontFamily: "'Inter', sans-serif", fontSize: '9px', letterSpacing: '0.28em', color: '#383838', textTransform: 'uppercase', display: 'block', marginBottom: '10px' }}>Message</label>
+              <label htmlFor="contact-message" style={{ fontFamily: "'Inter', sans-serif", fontSize: '9px', letterSpacing: '0.28em', color: '#383838', textTransform: 'uppercase', display: 'block', marginBottom: '10px' }}>Message</label>
               <textarea
+                id="contact-message"
                 rows={4}
+                value={values['Message'] ?? ''}
+                onChange={e => setField('Message', e.target.value)}
                 className="w-full bg-transparent resize-none"
                 style={{ borderBottom: '1px solid #141417', paddingBottom: '10px', fontFamily: "'Inter', sans-serif", fontSize: '14px', color: '#888', fontWeight: 300 }}
               />
@@ -3182,13 +3269,25 @@ function ContactPage({ onBack, onOpenNav }: { onBack: () => void; onOpenNav: () 
             <div>
               <button
                 type="submit"
+                disabled={status === 'sending'}
                 className="px-8 py-[13px] transition-all duration-200"
-                style={{ backgroundColor: '#C4C0B8', color: '#0A0A0A', fontFamily: "'Oswald', sans-serif", fontWeight: 600, fontSize: '11px', letterSpacing: '0.18em', textTransform: 'uppercase' }}
-                onMouseEnter={e => { e.currentTarget.style.backgroundColor = '#8C8884' }}
+                style={{ backgroundColor: '#C4C0B8', color: '#0A0A0A', fontFamily: "'Oswald', sans-serif", fontWeight: 600, fontSize: '11px', letterSpacing: '0.18em', textTransform: 'uppercase', opacity: status === 'sending' ? 0.6 : 1, cursor: status === 'sending' ? 'default' : 'pointer' }}
+                onMouseEnter={e => { if (status !== 'sending') e.currentTarget.style.backgroundColor = '#8C8884' }}
                 onMouseLeave={e => { e.currentTarget.style.backgroundColor = '#C4C0B8' }}
               >
-                Submit
+                {status === 'sending' ? 'Sending…' : 'Submit'}
               </button>
+
+              {sent && (
+                <p role="status" style={{ fontFamily: "'Inter', sans-serif", fontSize: '12px', color: '#C4C0B8', fontWeight: 300, lineHeight: 1.7, marginTop: '16px' }}>
+                  Thank you — your message has been sent. We will be in touch shortly.
+                </p>
+              )}
+              {error && (
+                <p role="alert" style={{ fontFamily: "'Inter', sans-serif", fontSize: '12px', color: '#C4C0B8', fontWeight: 300, lineHeight: 1.7, marginTop: '16px' }}>
+                  {error}
+                </p>
+              )}
             </div>
           </form>
 
@@ -3207,7 +3306,7 @@ function ContactPage({ onBack, onOpenNav }: { onBack: () => void; onOpenNav: () 
           </div>
         </div>
       </div>
-      <Footer onUtility={() => {}} />
+      <Footer onUtility={onUtility} />
     </InnerShell>
   )
 }
@@ -3272,7 +3371,19 @@ const APP_STEPS = [
 function AthleteApplication({ onBack, onOpenNav }: { onBack: () => void; onOpenNav: () => void }) {
   const [step, setStep] = useState(0)
   const [submitted, setSubmitted] = useState(false)
+  // Answers are held here rather than in the DOM, so moving between steps —
+  // which unmounts the previous step's inputs — no longer discards them.
+  const [values, setValues] = useState<Record<string, string>>({})
+  const { status, error, submit } = useFormSubmit('athlete-application')
   const current = APP_STEPS[step]
+
+  const setField = (label: string, value: string) =>
+    setValues(v => ({ ...v, [label]: value }))
+
+  const handleSubmit = async () => {
+    const ok = await submit(values)
+    if (ok) setSubmitted(true)
+  }
 
   return (
     <InnerShell onBack={onBack} onOpenNav={onOpenNav}>
@@ -3376,20 +3487,30 @@ function AthleteApplication({ onBack, onOpenNav }: { onBack: () => void; onOpenN
                       <textarea
                         rows={3}
                         placeholder={f.placeholder}
+                        value={values[f.label] ?? ''}
+                        onChange={e => setField(f.label, e.target.value)}
                         className="w-full bg-transparent resize-none"
                         style={{ borderBottom: '1px solid #141417', paddingBottom: '10px', fontFamily: "'Inter', sans-serif", fontSize: '14px', color: '#888', fontWeight: 300 }}
                       />
                     ) : f.type === 'file' ? (
                       <div style={{ borderBottom: '1px solid #141417', paddingBottom: '10px' }}>
                         <label className="cursor-pointer">
-                          <span style={{ fontFamily: "'Inter', sans-serif", fontSize: '13px', color: '#2a2a2d', fontWeight: 300 }}>Choose file →</span>
-                          <input type="file" className="hidden" />
+                          <span style={{ fontFamily: "'Inter', sans-serif", fontSize: '13px', color: values[f.label] ? '#888' : '#2a2a2d', fontWeight: 300 }}>
+                            {values[f.label] || 'Choose file →'}
+                          </span>
+                          <input
+                            type="file"
+                            className="hidden"
+                            onChange={e => setField(f.label, e.target.files?.[0]?.name ?? '')}
+                          />
                         </label>
                       </div>
                     ) : (
                       <input
                         type={f.type}
                         placeholder={f.placeholder}
+                        value={values[f.label] ?? ''}
+                        onChange={e => setField(f.label, e.target.value)}
                         className="w-full bg-transparent"
                         style={{ borderBottom: '1px solid #141417', paddingBottom: '10px', fontFamily: "'Inter', sans-serif", fontSize: '14px', color: '#888', fontWeight: 300 }}
                       />
@@ -3425,16 +3546,26 @@ function AthleteApplication({ onBack, onOpenNav }: { onBack: () => void; onOpenN
                 </button>
               ) : (
                 <button
-                  onClick={() => setSubmitted(true)}
+                  onClick={handleSubmit}
+                  disabled={status === 'sending'}
                   className="px-6 py-3 transition-all duration-200"
-                  style={{ backgroundColor: '#C4C0B8', color: '#0A0A0A', fontFamily: "'Oswald', sans-serif", fontWeight: 600, fontSize: '10px', letterSpacing: '0.18em', textTransform: 'uppercase' }}
-                  onMouseEnter={e => { e.currentTarget.style.backgroundColor = '#8C8884' }}
+                  style={{ backgroundColor: '#C4C0B8', color: '#0A0A0A', fontFamily: "'Oswald', sans-serif", fontWeight: 600, fontSize: '10px', letterSpacing: '0.18em', textTransform: 'uppercase', opacity: status === 'sending' ? 0.6 : 1, cursor: status === 'sending' ? 'default' : 'pointer' }}
+                  onMouseEnter={e => { if (status !== 'sending') e.currentTarget.style.backgroundColor = '#8C8884' }}
                   onMouseLeave={e => { e.currentTarget.style.backgroundColor = '#C4C0B8' }}
                 >
-                  Submit Application
+                  {status === 'sending' ? 'Sending…' : 'Submit Application'}
                 </button>
               )}
             </div>
+
+            {error && (
+              <p
+                role="alert"
+                style={{ fontFamily: "'Inter', sans-serif", fontSize: '12px', color: '#C4C0B8', fontWeight: 300, lineHeight: 1.7, marginTop: '18px', textAlign: 'right' }}
+              >
+                {error}
+              </p>
+            )}
           </>
         )}
       </div>
@@ -3447,8 +3578,20 @@ function AthleteApplication({ onBack, onOpenNav }: { onBack: () => void; onOpenN
 export default function App() {
   const [page, setPage] = useState<AppPage>({ type: 'home' })
   const [navOpen, setNavOpen] = useState(false)
-  const [showSplash, setShowSplash] = useState(true)
-  const handleSplashDone = () => setShowSplash(false)
+  // Play the intro once per session, and never when the visitor has asked for
+  // reduced motion. Previously it replayed on every load and every refresh.
+  const [showSplash, setShowSplash] = useState(() => {
+    try {
+      if (window.matchMedia('(prefers-reduced-motion: reduce)').matches) return false
+      return sessionStorage.getItem('splash-seen') !== '1'
+    } catch {
+      return true
+    }
+  })
+  const handleSplashDone = () => {
+    try { sessionStorage.setItem('splash-seen', '1') } catch { /* private mode */ }
+    setShowSplash(false)
+  }
 
   const goHome = () => setPage({ type: 'home' })
 
@@ -3458,13 +3601,15 @@ export default function App() {
   }
 
   const handleUtility = (name: string) => {
+    // Pillar links are emitted in title case by the footer ("Represent") and in
+    // upper case elsewhere, so match case-insensitively against NAV_TREE.
+    const pillar = Object.keys(NAV_TREE).find(p => p === name.toUpperCase())
+    if (pillar) { setPage({ type: 'pillar', pillar, l2: null, l3: null }); return }
+
     if (name === 'Home') setPage({ type: 'home' })
     else if (name === 'About') setPage({ type: 'about' })
     else if (name === 'Contact') setPage({ type: 'contact' })
     else if (name === 'Athlete Application') setPage({ type: 'apply' })
-    else if (name === 'REPRESENT') setPage({ type: 'pillar', pillar: 'REPRESENT', l2: null, l3: null })
-    else if (name === 'BUILD') setPage({ type: 'pillar', pillar: 'BUILD', l2: null, l3: null })
-    else if (name === 'PROTECT') setPage({ type: 'pillar', pillar: 'PROTECT', l2: null, l3: null })
   }
 
   const handleCTA = (action: string) => {
@@ -3548,15 +3693,16 @@ export default function App() {
           l3={page.l3}
           onBack={goHome}
           onOpenNav={() => setNavOpen(true)}
+          onUtility={handleUtility}
         />
       )}
 
       {page.type === 'about' && (
-        <AboutPage key="about" onBack={goHome} onOpenNav={() => setNavOpen(true)} />
+        <AboutPage key="about" onBack={goHome} onOpenNav={() => setNavOpen(true)} onUtility={handleUtility} />
       )}
 
       {page.type === 'contact' && (
-        <ContactPage key="contact" onBack={goHome} onOpenNav={() => setNavOpen(true)} />
+        <ContactPage key="contact" onBack={goHome} onOpenNav={() => setNavOpen(true)} onUtility={handleUtility} />
       )}
 
       {page.type === 'apply' && (

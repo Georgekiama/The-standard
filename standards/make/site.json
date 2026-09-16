@@ -2,10 +2,13 @@
   "title": "The Standard Sports & Entertainment Group",
   "description": "Elite athlete representation, NIL strategy, and legal protection through Conn Law Firm. Building careers, brands, and legacies that outlast the game.",
   "robots": {
-    "index": false
+    "index": true
+  },
+  "icons": {
+    "icon": "/favicon.png"
   },
   "accessibility": {
-    "addBypassLinks": false,
+    "addBypassLinks": true,
     "ignoreReducedMotion": false
   }
 }
