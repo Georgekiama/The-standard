@@ -1,0 +1,10 @@
+{
+  "description": "Delivers expertly crafted, high-end website designs that preserve original content and provide a polished, human-centered user experience for clients.",
+  "robots": {
+    "index": false
+  },
+  "accessibility": {
+    "addBypassLinks": false,
+    "ignoreReducedMotion": false
+  }
+}

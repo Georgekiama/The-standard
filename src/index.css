@@ -1,0 +1,45 @@
+@import url('https://fonts.googleapis.com/css2?family=Bebas+Neue&family=Oswald:wght@300;400;500;600;700&family=Inter:ital,wght@0,300;0,400;0,500;0,600;0,700;1,300;1,400&display=swap');
+@import 'tailwindcss';
+
+@theme {
+  --color-matte: #0A0A0A;
+  --color-charcoal: #2B2B2E;
+  --color-gold: #C4C0B8;
+  --color-gold-muted: #8C8884;
+}
+
+* {
+  scrollbar-width: none;
+}
+*::-webkit-scrollbar {
+  display: none;
+}
+
+html {
+  background-color: #0A0A0A;
+}
+
+body {
+  background-color: #0A0A0A;
+  color: #ffffff;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+}
+
+/* Background images: ensure they fill properly on all screen sizes */
+@media (max-width: 767px) {
+  .photo-break-img {
+    object-position: center center !important;
+  }
+}
+
+input::placeholder,
+textarea::placeholder {
+  color: #2a2a2d;
+  font-family: 'Inter', sans-serif;
+}
+
+input:focus,
+textarea:focus {
+  outline: none;
+}
