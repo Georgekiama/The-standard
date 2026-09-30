@@ -30,6 +30,7 @@ import thisIsStandard2 from '@/imports/this_is_the_standard_2.jpeg'
 import img1340 from '@/imports/IMG_1340.JPG'
 import connLawLogo from '@/imports/ConnLaw_4C_Horiz-4.jpg'
 import standardLogoImg from '@/imports/logo_4.png'
+import footerLogo from '@/imports/TheStandard_Logo_dark.png'
 import golfHeroImg from '@/imports/golf_image2.jpg'
 import nil1Img from '@/imports/nil_1.JPG'
 import nil2Img from '@/imports/nil_2.JPG'
@@ -2105,7 +2106,21 @@ function Footer({ onUtility }: { onUtility: (page: string) => void }) {
           {/* Left: brand logo + tagline */}
           <div>
             <div style={{ marginBottom: '16px' }}>
-              <LogoMark uid="lm_f" style={{ width: '180px', height: 'auto', opacity: 0.88 }} />
+              {/* Dark-background variant: the supplied logo's "THE" and tagline are
+                  near-black artwork that vanish on #060608. Rendered at 320px
+                  rather than the old mark's 180px — this lockup is 7.6:1, so at
+                  180px the tagline is too small to read. */}
+              <img
+                src={footerLogo}
+                alt="The Standard Sports &amp; Entertainment Group"
+                style={{
+                  width: '100%',
+                  maxWidth: '320px',
+                  height: 'auto',
+                  display: 'block',
+                  opacity: 0.92,
+                }}
+              />
             </div>
             <p
               style={{
